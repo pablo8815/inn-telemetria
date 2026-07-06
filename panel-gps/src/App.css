@@ -1,0 +1,18 @@
+/* src/index.css */
+:root {
+  font-family: 'Inter', 'Segoe UI', system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F3F4F6; /* El mismo gris claro de nuestro diseño */
+}
+
+/* Quitamos cualquier restricción de ancho que tenga Vite por defecto */
+#root {
+  max-width: none !important;
+  text-align: left;
+}
