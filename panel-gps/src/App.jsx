@@ -30,7 +30,9 @@ function App() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const res = await fetch('https://inn-telemetria.onrender.com/api/telemetry');
+        const res = await fetch(`https://inn-telemetria.onrender.com/api/telemetry?t=${Date.now()}`, {
+          cache: 'no-store'
+        });
         const data = await res.json();
         // Comparamos para evitar parpadeos innecesarios
         if (JSON.stringify(data) !== JSON.stringify(registros)) {
