@@ -30,18 +30,18 @@ function App() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/telemetry');
+        const res = await fetch('https://inn-telemetria.onrender.com/api/telemetry');
         const data = await res.json();
-        // Comparamos para evitar parpadeos
+        // Comparamos para evitar parpadeos innecesarios
         if (JSON.stringify(data) !== JSON.stringify(registros)) {
            setRegistros(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        console.error("Error al cargar:", err);
+        console.error("Error al cargar telemetría:", err);
       }
     };
     cargarDatos();
-    const interval = setInterval(cargarDatos, 5000);
+    const interval = setInterval(cargarDatos, 5000); // Refresca cada 5s
     return () => clearInterval(interval);
   }, [registros]);
 
@@ -143,16 +143,15 @@ function KpiCard({ titulo, valor, color }) {
   );
 }
 
-// === COMPONENTE DE DETALLES ACTUALIZADO ===
-// === COMPONENTE DE DETALLES ACTUALIZADO CON PERIFÉRICOS ===
+// COMPONENTE DE DETALLES CON MAPA Y PERIFÉRICOS
 function DashboardEquipo({ equipoId, datos, onBack }) {
   const [registroActivo, setRegistroActivo] = useState(datos[0]); 
 
   useEffect(() => {
-    if (!registroActivo && datos.length > 0) {
+    if (datos.length > 0) {
       setRegistroActivo(datos[0]);
     }
-  }, [datos, registroActivo]);
+  }, [datos]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -184,7 +183,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
             </div>
           </div>
 
-          {/* NUEVO PANEL: PERIFÉRICOS CONECTADOS */}
+          {/* PANEL: PERIFÉRICOS CONECTADOS */}
           <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
             <div style={{ padding: '18px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between' }}>
               <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Puertos COM y Dispositivos USB</strong>
@@ -197,7 +196,6 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
                 <ul style={{ margin: 0, paddingLeft: '20px', color: '#334155', fontSize: '0.95rem' }}>
                   {registroActivo.perifericos.map((periferico, idx) => (
                     <li key={idx} style={{ marginBottom: '8px' }}>
-                      {/* Le ponemos un icono de cable si detecta un puerto COM (PLC) */}
                       {periferico.includes('COM') ? '🔌 ' : '🖴 '} 
                       {periferico}
                     </li>
@@ -210,7 +208,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: PANEL HISTORIAL INTERACTIVO */}
+        {/* COLUMNA DERECHA: LOG DE AUDITORÍA */}
         <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '18px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
             <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Log de Auditoría</strong>
@@ -221,11 +219,11 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
               
               return (
                 <div 
-                  key={d._id} 
+                  key={d._id || i} 
                   onClick={() => setRegistroActivo(d)}
                   style={{ 
                     padding: '16px 25px', 
-                    borderBottom: i !== datos.length -1 ? '1px solid #F1F5F9' : 'none', 
+                    borderBottom: i !== datos.length - 1 ? '1px solid #F1F5F9' : 'none', 
                     display: 'flex', 
                     gap: '15px', 
                     alignItems: 'flex-start',

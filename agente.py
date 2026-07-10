@@ -27,7 +27,7 @@ def obtener_ubicacion():
 # 2. Función para detectar USBs y PLCs
 def obtener_perifericos():
     print("  -> Escaneando puertos y dispositivos USB...")
-    cmd = 'powershell "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match \'^USB\' -or $_.Class -eq \'Ports\' } | Select-Object -ExpandProperty FriendlyName"'
+    cmd = 'powershell "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match \'^USB\' -or $_.Class -eq \'Ports\' } | Select-Object -ExpandProperty FriendlyName -ErrorAction SilentlyContinue"'
     try:
         salida = subprocess.check_output(cmd, shell=True, text=True, encoding='cp850', errors='ignore')
         dispositivos = [linea.strip() for linea in salida.split('\n') if linea.strip()]
@@ -47,8 +47,6 @@ def sincronizar_con_servidor():
     lat, lng = obtener_ubicacion()
     perifericos_conectados = obtener_perifericos()
     
-    # Incluso si no hay GPS, enviamos los periféricos si lat es 0.0? 
-    # (Si solo quieres enviar si hay GPS, deja el 'if' como está)
     evento_data = {
         "equipo_id": "INN-L28",
         "evento": "Ubicación detectada",
@@ -58,7 +56,7 @@ def sincronizar_con_servidor():
     }
     
     try:
-        response = requests.post("http://localhost:3000/api/telemetry", json=[evento_data], timeout=5)
+        response = requests.post("https://inn-telemetria.onrender.com/api/telemetry", json=[evento_data], timeout=20)
         if response.status_code == 200:
             print("  -> [+] Sincronización exitosa con periféricos incluidos.")
         else:
@@ -66,11 +64,11 @@ def sincronizar_con_servidor():
     except Exception as e:
         print(f"  -> Error al conectar con el servidor: {e}")
 
-# 4. Bloque principal (Ahora todo está definido arriba)
+# 4. Bloque principal
 if __name__ == '__main__':
     print("--- INICIANDO AGENTE ---")
     
     while True:
         sincronizar_con_servidor()
         print("El agente está activo, esperando...")
-        time.sleep(3600) # 5 minutos es un buen tiempo para no saturar
+        time.sleep(3600)  # 1 hora (3600 segundos)
