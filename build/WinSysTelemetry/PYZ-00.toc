@@ -1,5 +1,5 @@
 ('C:\\Users\\INN-PABLO\\Documents\\Calidad\\RESPALDO JUAN\\RESPALDO JUAN '
- 'PABLO\\Calidad\\APP\\GPS LAPTOP\\build\\agente\\PYZ-00.pyz',
+ 'PABLO\\Calidad\\APP\\GPS LAPTOP\\build\\WinSysTelemetry\\PYZ-00.pyz',
  [('__future__',
    'c:\\users\\pablo.garcia\\appdata\\local\\programs\\python\\python39\\lib\\__future__.py',
    'PYMODULE'),
