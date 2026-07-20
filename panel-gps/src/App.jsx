@@ -24,30 +24,42 @@ function MoverMapa({ centro }) {
 
 function App() {
   const [registros, setRegistros] = useState([]);
+  const [equipos, setEquipos] = useState([]); // <-- NUEVO ESTADO PARA EL CATÁLOGO
   const [vista, setVista] = useState('dashboard'); 
   const [equipoSeleccionado, setEquipoSeleccionado] = useState(null);
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const res = await fetch(`https://inn-telemetria.onrender.com/api/telemetry?t=${Date.now()}`, {
-          cache: 'no-store'
-        });
-        const data = await res.json();
-        // Comparamos para evitar parpadeos innecesarios
-        if (JSON.stringify(data) !== JSON.stringify(registros)) {
-           setRegistros(Array.isArray(data) ? data : []);
+        // 1. Cargar Historial (Para el mapa y la auditoría)
+        const resTelemetria = await fetch(`https://inn-telemetria.onrender.com/api/telemetry?t=${Date.now()}`, { cache: 'no-store' });
+        const dataTelemetria = await resTelemetria.json();
+        if (JSON.stringify(dataTelemetria) !== JSON.stringify(registros)) {
+           setRegistros(Array.isArray(dataTelemetria) ? dataTelemetria : []);
         }
+
+        // 2. Cargar Catálogo de Equipos (Para las tarjetas principales)
+        const resEquipos = await fetch(`https://inn-telemetria.onrender.com/api/equipos?t=${Date.now()}`, { cache: 'no-store' });
+        const dataEquipos = await resEquipos.json();
+        setEquipos(Array.isArray(dataEquipos) ? dataEquipos : []);
+
       } catch (err) {
-        console.error("Error al cargar telemetría:", err);
+        console.error("Error al cargar datos:", err);
       }
     };
+    
     cargarDatos();
     const interval = setInterval(cargarDatos, 5000); // Refresca cada 5s
     return () => clearInterval(interval);
   }, [registros]);
 
-  const equiposUnicos = [...new Set(registros.map(r => r.equipo_id))];
+  // Lógica para saber cuántos están "En Red" (conectados en los últimos 15 min)
+  const ahora = new Date();
+  const equiposEnRed = equipos.filter(eq => {
+    if (!eq.ultima_conexion) return false;
+    const diffMinutos = (ahora - new Date(eq.ultima_conexion)) / 1000 / 60;
+    return diffMinutos < 15;
+  }).length;
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', backgroundColor: '#F1F5F9', fontFamily: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', overflow: 'hidden' }}>
@@ -85,30 +97,42 @@ function App() {
           {vista === 'dashboard' ? (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' }}>
-                <KpiCard titulo="Total de Equipos Registrados" valor={equiposUnicos.length} color="#3B82F6" />
-                <KpiCard titulo="Equipos Reportando" valor={equiposUnicos.length} color="#10B981" />
+                {/* AHORA USA EL TOTAL REAL DEL CATÁLOGO */}
+                <KpiCard titulo="Total de Equipos Registrados" valor={equipos.length} color="#3B82F6" />
+                <KpiCard titulo="Equipos Reportando" valor={equiposEnRed} color="#10B981" />
                 <KpiCard titulo="Alertas del Sistema" valor="0" color="#EF4444" />
               </div>
 
               <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '25px', border: '1px solid #E2E8F0' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#1E293B', fontSize: '1.1rem' }}>Listado de Unidades</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                  {equiposUnicos.map(id => {
-                    const regEquipo = registros.filter(r => r.equipo_id === id)[0];
+                  
+                  {/* AHORA MAPEAMOS EL CATÁLOGO OFICIAL, NO EL HISTORIAL */}
+                  {equipos.map(equipo => {
+                    const ultimaConexion = equipo.ultima_conexion ? new Date(equipo.ultima_conexion) : null;
+                    const diffMinutos = ultimaConexion ? (ahora - ultimaConexion) / 1000 / 60 : Infinity;
+                    const enLinea = diffMinutos < 15;
+
                     return (
-                      <div key={id} style={{ border: '1px solid #E2E8F0', borderRadius: '8px', padding: '20px', transition: 'all 0.2s', cursor: 'pointer', backgroundColor: '#F8FAFC' }}
-                           onClick={() => { setEquipoSeleccionado(id); setVista('detalle'); }}
+                      <div key={equipo.equipo_id} style={{ border: '1px solid #E2E8F0', borderRadius: '8px', padding: '20px', transition: 'all 0.2s', cursor: 'pointer', backgroundColor: '#F8FAFC' }}
+                           onClick={() => { setEquipoSeleccionado(equipo.equipo_id); setVista('detalle'); }}
                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3B82F6'; e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(59,130,246,0.1)'; }}
                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.boxShadow = 'none'; }}>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' }}>
-                          <strong style={{ fontSize: '1.25rem', color: '#0F172A' }}>{id}</strong>
-                          <span style={{ background: '#DCFCE7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #BBF7D0' }}>En red</span>
+                          <strong style={{ fontSize: '1.25rem', color: '#0F172A' }}>{equipo.equipo_id}</strong>
+                          
+                          {/* ETIQUETA DINÁMICA DE ESTADO */}
+                          {enLinea ? (
+                            <span style={{ background: '#DCFCE7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #BBF7D0' }}>En red</span>
+                          ) : (
+                            <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #FECACA' }}>Desconectado</span>
+                          )}
                         </div>
                         
                         <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '15px', marginTop: '10px' }}>
-                          <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748B' }}>Usuario Asignado: <strong style={{ color: '#334155' }}>Pendiente</strong></p>
-                          <p style={{ margin: '0', fontSize: '0.85rem', color: '#64748B' }}>Última sincronización: <strong style={{ color: '#334155' }}>{regEquipo ? new Date(regEquipo.offline_timestamp).toLocaleTimeString('es-MX') : '--'}</strong></p>
+                          <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748B' }}>Usuario Asignado: <strong style={{ color: '#334155' }}>{equipo.usuario_asignado}</strong></p>
+                          <p style={{ margin: '0', fontSize: '0.85rem', color: '#64748B' }}>Última sincronización: <strong style={{ color: '#334155' }}>{ultimaConexion ? ultimaConexion.toLocaleTimeString('es-MX') : '--'}</strong></p>
                         </div>
                       </div>
                     )
@@ -190,13 +214,13 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
             <div style={{ padding: '18px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between' }}>
               <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Puertos COM y Dispositivos USB</strong>
               <span style={{ fontSize: '0.85rem', color: '#64748B', backgroundColor: '#E2E8F0', padding: '2px 8px', borderRadius: '12px' }}>
-                {registroActivo?.perifericos?.length || 0} detectados
+                {registroActivo?.perifericos_usb?.length || 0} detectados
               </span>
             </div>
             <div style={{ padding: '20px 25px' }}>
-              {registroActivo?.perifericos && registroActivo.perifericos.length > 0 ? (
+              {registroActivo?.perifericos_usb && registroActivo.perifericos_usb.length > 0 ? (
                 <ul style={{ margin: 0, paddingLeft: '20px', color: '#334155', fontSize: '0.95rem' }}>
-                  {registroActivo.perifericos.map((periferico, idx) => (
+                  {registroActivo.perifericos_usb.map((periferico, idx) => (
                     <li key={idx} style={{ marginBottom: '8px' }}>
                       {periferico.includes('COM') ? '🔌 ' : '🖴 '} 
                       {periferico}
@@ -216,7 +240,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
             <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Log de Auditoría</strong>
           </div>
           <div style={{ padding: '0', overflowY: 'auto', maxHeight: '600px' }}>
-            {datos.map((d, i) => {
+            {datos.length > 0 ? datos.map((d, i) => {
               const isSelected = registroActivo?._id === d._id; 
               
               return (
@@ -243,7 +267,11 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
                   </div>
                 </div>
               )
-            })}
+            }) : (
+              <div style={{ padding: '30px', color: '#94A3B8', textAlign: 'center', fontStyle: 'italic' }}>
+                Este equipo aún no ha enviado alertas o reportes recientes.
+              </div>
+            )}
           </div>
         </div>
 
@@ -253,3 +281,5 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
 }
 
 export default App;
+
+//hola
