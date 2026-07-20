@@ -24,21 +24,24 @@ function MoverMapa({ centro }) {
 
 function App() {
   const [registros, setRegistros] = useState([]);
-  const [equipos, setEquipos] = useState([]); // <-- NUEVO ESTADO PARA EL CATÁLOGO
+  const [equipos, setEquipos] = useState([]); 
   const [vista, setVista] = useState('dashboard'); 
   const [equipoSeleccionado, setEquipoSeleccionado] = useState(null);
+  
+  // Estado para guardar el texto temporal que escribimos en Gestión de Activos
+  const [usuariosEditables, setUsuariosEditables] = useState({});
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        // 1. Cargar Historial (Para el mapa y la auditoría)
+        // 1. Cargar Historial
         const resTelemetria = await fetch(`https://inn-telemetria.onrender.com/api/telemetry?t=${Date.now()}`, { cache: 'no-store' });
         const dataTelemetria = await resTelemetria.json();
         if (JSON.stringify(dataTelemetria) !== JSON.stringify(registros)) {
            setRegistros(Array.isArray(dataTelemetria) ? dataTelemetria : []);
         }
 
-        // 2. Cargar Catálogo de Equipos (Para las tarjetas principales)
+        // 2. Cargar Catálogo de Equipos
         const resEquipos = await fetch(`https://inn-telemetria.onrender.com/api/equipos?t=${Date.now()}`, { cache: 'no-store' });
         const dataEquipos = await resEquipos.json();
         setEquipos(Array.isArray(dataEquipos) ? dataEquipos : []);
@@ -52,6 +55,33 @@ function App() {
     const interval = setInterval(cargarDatos, 5000); // Refresca cada 5s
     return () => clearInterval(interval);
   }, [registros]);
+
+  // Función para guardar el nuevo usuario asignado en la base de datos
+  const guardarUsuario = async (equipo_id) => {
+    const nuevoUsuario = usuariosEditables[equipo_id];
+    
+    if (!nuevoUsuario || nuevoUsuario.trim() === '') {
+        alert("Por favor escribe un nombre antes de guardar.");
+        return; 
+    }
+
+    try {
+        const res = await fetch(`https://inn-telemetria.onrender.com/api/equipos/${equipo_id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario_asignado: nuevoUsuario })
+        });
+        
+        if(res.ok) {
+            setEquipos(equipos.map(eq => eq.equipo_id === equipo_id ? { ...eq, usuario_asignado: nuevoUsuario } : eq));
+            setUsuariosEditables({...usuariosEditables, [equipo_id]: ''});
+            alert(`¡Usuario asignado a ${equipo_id} actualizado con éxito!`);
+        }
+    } catch (error) {
+        console.error("Error al guardar:", error);
+        alert("Ocurrió un error de red al intentar guardar.");
+    }
+  };
 
   // Lógica para saber cuántos están "En Red" (conectados en los últimos 15 min)
   const ahora = new Date();
@@ -72,7 +102,7 @@ function App() {
         </div>
         <nav style={{ padding: '20px 0', flexGrow: 1 }}>
           <MenuItem active={vista === 'dashboard'} onClick={() => setVista('dashboard')} icon="📊" text="Panel de Control" />
-          <MenuItem active={false} icon="💻" text="Gestión de Activos" />
+          <MenuItem active={vista === 'gestion'} onClick={() => setVista('gestion')} icon="💻" text="Gestión de Activos" />
           <MenuItem active={false} icon="⚙️" text="Configuración" />
         </nav>
         <div style={{ padding: '20px', fontSize: '0.8rem', color: '#64748B', borderTop: '1px solid #334155' }}>
@@ -85,7 +115,9 @@ function App() {
         
         <header style={{ height: '70px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 30px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', zIndex: 5 }}>
           <h2 style={{ margin: 0, fontSize: '1.3rem', color: '#334155', fontWeight: '600' }}>
-            {vista === 'dashboard' ? 'Monitor de Dispositivos Activos' : `Detalle de Activo: ${equipoSeleccionado}`}
+            {vista === 'dashboard' ? 'Monitor de Dispositivos Activos' : 
+             vista === 'gestion' ? 'Gestión y Asignación de Activos' : 
+             `Detalle de Activo: ${equipoSeleccionado}`}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <span style={{ color: '#64748B', fontSize: '0.9rem', fontWeight: '500' }}>Ing. Pablo García</span>
@@ -94,10 +126,11 @@ function App() {
         </header>
 
         <div style={{ flex: 1, padding: '30px', overflowY: 'auto' }}>
-          {vista === 'dashboard' ? (
+          
+          {/* VISTA 1: DASHBOARD PRINCIPAL */}
+          {vista === 'dashboard' && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' }}>
-                {/* AHORA USA EL TOTAL REAL DEL CATÁLOGO */}
                 <KpiCard titulo="Total de Equipos Registrados" valor={equipos.length} color="#3B82F6" />
                 <KpiCard titulo="Equipos Reportando" valor={equiposEnRed} color="#10B981" />
                 <KpiCard titulo="Alertas del Sistema" valor="0" color="#EF4444" />
@@ -106,8 +139,6 @@ function App() {
               <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '25px', border: '1px solid #E2E8F0' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#1E293B', fontSize: '1.1rem' }}>Listado de Unidades</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                  
-                  {/* AHORA MAPEAMOS EL CATÁLOGO OFICIAL, NO EL HISTORIAL */}
                   {equipos.map(equipo => {
                     const ultimaConexion = equipo.ultima_conexion ? new Date(equipo.ultima_conexion) : null;
                     const diffMinutos = ultimaConexion ? (ahora - ultimaConexion) / 1000 / 60 : Infinity;
@@ -121,8 +152,6 @@ function App() {
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' }}>
                           <strong style={{ fontSize: '1.25rem', color: '#0F172A' }}>{equipo.equipo_id}</strong>
-                          
-                          {/* ETIQUETA DINÁMICA DE ESTADO */}
                           {enLinea ? (
                             <span style={{ background: '#DCFCE7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #BBF7D0' }}>En red</span>
                           ) : (
@@ -131,7 +160,7 @@ function App() {
                         </div>
                         
                         <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '15px', marginTop: '10px' }}>
-                          <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748B' }}>Usuario Asignado: <strong style={{ color: '#334155' }}>{equipo.usuario_asignado}</strong></p>
+                          <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748B' }}>Usuario Asignado: <strong style={{ color: '#334155' }}>{equipo.usuario_asignado || 'Pendiente'}</strong></p>
                           <p style={{ margin: '0', fontSize: '0.85rem', color: '#64748B' }}>Última sincronización: <strong style={{ color: '#334155' }}>{ultimaConexion ? ultimaConexion.toLocaleTimeString('es-MX') : '--'}</strong></p>
                         </div>
                       </div>
@@ -140,9 +169,71 @@ function App() {
                 </div>
               </div>
             </>
-          ) : (
+          )}
+
+          {/* VISTA 2: GESTIÓN DE ACTIVOS */}
+          {vista === 'gestion' && (
+            <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '25px', border: '1px solid #E2E8F0' }}>
+                <h3 style={{ margin: '0 0 20px 0', color: '#1E293B', fontSize: '1.1rem' }}>Directorio de Asignaciones</h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {equipos.map(equipo => {
+                        const ultimaConexion = equipo.ultima_conexion ? new Date(equipo.ultima_conexion) : null;
+                        const diffMinutos = ultimaConexion ? (ahora - ultimaConexion) / 1000 / 60 : Infinity;
+                        const enLinea = diffMinutos < 15;
+
+                        return (
+                            <div key={equipo.equipo_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 25px', border: '1px solid #E2E8F0', borderRadius: '8px', backgroundColor: '#F8FAFC' }}>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: '250px' }}>
+                                    <strong style={{ fontSize: '1.1rem', color: '#0F172A' }}>{equipo.equipo_id}</strong>
+                                    {enLinea ? (
+                                        <span style={{ background: '#DCFCE7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #BBF7D0' }}>En red</span>
+                                    ) : (
+                                        <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #FECACA' }}>Desconectado</span>
+                                    )}
+                                </div>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1, justifyContent: 'flex-end' }}>
+                                    <span style={{ color: '#64748B', fontSize: '0.9rem' }}>Responsable actual: <strong style={{color: '#334155'}}>{equipo.usuario_asignado || 'Pendiente'}</strong></span>
+                                    
+                                    <input 
+                                        type="text" 
+                                        placeholder="Escribe el nuevo nombre..."
+                                        value={usuariosEditables[equipo.equipo_id] || ''}
+                                        onChange={(e) => setUsuariosEditables({
+                                            ...usuariosEditables, 
+                                            [equipo.equipo_id]: e.target.value
+                                        })}
+                                        style={{ width: '250px', padding: '10px 15px', border: '1px solid #CBD5E1', borderRadius: '6px', outline: 'none', fontSize: '0.9rem' }}
+                                    />
+                                    <button 
+                                        onClick={() => guardarUsuario(equipo.equipo_id)}
+                                        style={{ background: '#0284C7', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                                        onMouseEnter={(e) => e.target.style.background = '#0369A1'}
+                                        onMouseLeave={(e) => e.target.style.background = '#0284C7'}
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
+                        )
+                    })}
+                    
+                    {equipos.length === 0 && (
+                        <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontStyle: 'italic' }}>
+                            Aún no hay equipos registrados en el catálogo oficial.
+                        </div>
+                    )}
+                </div>
+            </div>
+          )}
+
+          {/* VISTA 3: DETALLE DEL EQUIPO (MAPA) */}
+          {vista === 'detalle' && (
              <DashboardEquipo equipoId={equipoSeleccionado} datos={registros.filter(r => r.equipo_id === equipoSeleccionado)} onBack={() => setVista('dashboard')} />
           )}
+
         </div>
       </main>
     </div>
@@ -281,6 +372,3 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
 }
 
 export default App;
-
-// Actualizando vista de gestión.
-// listo
