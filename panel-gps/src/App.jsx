@@ -283,3 +283,4 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
 export default App;
 
 // Actualizando vista de gestión.
+// listo
