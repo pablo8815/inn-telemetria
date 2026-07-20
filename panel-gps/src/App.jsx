@@ -83,13 +83,14 @@ function App() {
     }
   };
 
-  // Lógica para saber cuántos están "En Red" (conectados en los últimos 15 min)
-  const ahora = new Date();
-  const equiposEnRed = equipos.filter(eq => {
-    if (!eq.ultima_conexion) return false;
-    const diffMinutos = ultimaConexion ? (ahora - ultimaConexion) / 1000 / 60 : Infinity;
-const enLinea = diffMinutos < 70;
-  }).length;
+ // Lógica para saber cuántos están "En Red" (conectados en los últimos 70 min)
+ const ahora = new Date();
+ const equiposEnRed = equipos.filter(eq => {
+   if (!eq.ultima_conexion) return false;
+   const ultimaConexionDate = new Date(eq.ultima_conexion);
+   const diffMinutos = (ahora - ultimaConexionDate) / 1000 / 60;
+   return diffMinutos < 70;
+ }).length;
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', backgroundColor: '#F1F5F9', fontFamily: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', overflow: 'hidden' }}>
