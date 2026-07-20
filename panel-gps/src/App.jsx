@@ -87,8 +87,8 @@ function App() {
   const ahora = new Date();
   const equiposEnRed = equipos.filter(eq => {
     if (!eq.ultima_conexion) return false;
-    const diffMinutos = (ahora - new Date(eq.ultima_conexion)) / 1000 / 60;
-    return diffMinutos < 15;
+    const diffMinutos = ultimaConexion ? (ahora - ultimaConexion) / 1000 / 60 : Infinity;
+const enLinea = diffMinutos < 70;
   }).length;
 
   return (
