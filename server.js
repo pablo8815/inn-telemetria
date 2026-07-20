@@ -79,6 +79,23 @@ app.get('/api/telemetry', async (req, res) => {
     }
 });
 
+// --- 5. RUTA PUT (Para actualizar el usuario asignado en Gestión de Activos) ---
+app.put('/api/equipos/:equipo_id', async (req, res) => {
+    try {
+        const { usuario_asignado } = req.body;
+        // Busca el equipo por su ID (ej. INN-L28) y actualiza el campo del usuario
+        const equipoActualizado = await Equipo.findOneAndUpdate(
+            { equipo_id: req.params.equipo_id },
+            { usuario_asignado: usuario_asignado },
+            { new: true }
+        );
+        res.json({ message: 'Usuario actualizado correctamente', equipo: equipoActualizado });
+    } catch (err) {
+        console.error('Error actualizando equipo:', err);
+        res.status(500).json({ error: 'Error al actualizar el usuario' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor de rastreo corriendo en el puerto ${PORT}`);
