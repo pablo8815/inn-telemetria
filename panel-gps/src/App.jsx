@@ -261,15 +261,24 @@ function KpiCard({ titulo, valor, color }) {
   );
 }
 
-// COMPONENTE DE DETALLES CON MAPA Y PERIFÉRICOS
+// COMPONENTE DE DETALLES CON MAPA, PERIFÉRICOS Y CALENDARIO FILTRO
 function DashboardEquipo({ equipoId, datos, onBack }) {
-  const [registroActivo, setRegistroActivo] = useState(datos[0]); 
+  const [fechaSeleccionada, setFechaSeleccionada] = useState('');
+  
+  // Filtrar registros por fecha y ordenar del más reciente al más antiguo
+  const datosFiltrados = datos.filter(d => {
+    if (!fechaSeleccionada) return true;
+    const fechaRegistro = new Date(d.offline_timestamp).toISOString().split('T')[0];
+    return fechaRegistro === fechaSeleccionada;
+  });
+
+  const [registroActivo, setRegistroActivo] = useState(datosFiltrados[0] || datos[0]); 
 
   useEffect(() => {
-    if (datos.length > 0) {
-      setRegistroActivo(datos[0]);
+    if (datosFiltrados.length > 0) {
+      setRegistroActivo(datosFiltrados[0]);
     }
-  }, [datos]);
+  }, [datosFiltrados]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -326,13 +335,36 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: LOG DE AUDITORÍA */}
+        {/* COLUMNA DERECHA: LOG DE AUDITORÍA CON CALENDARIO */}
         <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '18px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+          <div style={{ padding: '15px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Log de Auditoría</strong>
+            
+            {/* CALENDARIO FILTRO */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Filtrar fecha:</span>
+              <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
+                <input 
+                  type="date" 
+                  value={fechaSeleccionada}
+                  onChange={(e) => setFechaSeleccionada(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none', backgroundColor: 'white' }}
+                />
+                {fechaSeleccionada && (
+                  <button 
+                    onClick={() => setFechaSeleccionada('')}
+                    style={{ background: '#E2E8F0', border: 'none', padding: '0 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', color: '#334155', fontWeight: 'bold' }}
+                    title="Limpiar filtro"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <div style={{ padding: '0', overflowY: 'auto', maxHeight: '600px' }}>
-            {datos.length > 0 ? datos.map((d, i) => {
+
+          <div style={{ padding: '0', overflowY: 'auto', maxHeight: '530px' }}>
+            {datosFiltrados.length > 0 ? datosFiltrados.map((d, i) => {
               const isSelected = registroActivo?._id === d._id; 
               
               return (
@@ -341,7 +373,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
                   onClick={() => setRegistroActivo(d)}
                   style={{ 
                     padding: '16px 25px', 
-                    borderBottom: i !== datos.length - 1 ? '1px solid #F1F5F9' : 'none', 
+                    borderBottom: i !== datosFiltrados.length - 1 ? '1px solid #F1F5F9' : 'none', 
                     display: 'flex', 
                     gap: '15px', 
                     alignItems: 'flex-start',
@@ -361,7 +393,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
               )
             }) : (
               <div style={{ padding: '30px', color: '#94A3B8', textAlign: 'center', fontStyle: 'italic' }}>
-                Este equipo aún no ha enviado alertas o reportes recientes.
+                No hay registros para la fecha seleccionada.
               </div>
             )}
           </div>
