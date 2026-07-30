@@ -70,8 +70,8 @@ app.get('/api/equipos', async (req, res) => {
 // --- 4. RUTA GET HISTORIAL (Para el mapa y la auditoría) ---
 app.get('/api/telemetry', async (req, res) => {
     try {
-        // Aumentamos el límite a 100 para que tengas más registros en la auditoría
-        const datos = await Telemetry.find().sort({ offline_timestamp: -1 }).limit(100);
+        // Límite aumentado a 5000 para cargar todo el historial de días y semanas pasadas
+        const datos = await Telemetry.find().sort({ offline_timestamp: -1 }).limit(5000);
         res.json(datos);
     } catch (err) {
         console.error('Error leyendo telemetría:', err);
