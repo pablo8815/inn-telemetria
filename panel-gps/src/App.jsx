@@ -261,24 +261,38 @@ function KpiCard({ titulo, valor, color }) {
   );
 }
 
-// COMPONENTE DE DETALLES CON MAPA, PERIFÉRICOS Y CALENDARIO FILTRO
+// COMPONENTE DE DETALLES CON MAPA, PERIFÉRICOS Y SELECTOR DE DÍAS
 function DashboardEquipo({ equipoId, datos, onBack }) {
-  const [fechaSeleccionada, setFechaSeleccionada] = useState('');
-  
-  // Filtrar registros por fecha y ordenar del más reciente al más antiguo
+  // Extraer dinámicamente la lista de días únicos que tienen registros para este equipo
+  const diasDisponibles = Array.from(new Set(datos.map(d => {
+    return new Date(d.offline_timestamp).toLocaleDateString('es-MX'); // Formato limpio y exacto para México
+  })));
+
+  // Por defecto seleccionamos el día más reciente (el primero de la lista)
+  const [diaSeleccionado, setDiaSeleccionado] = useState(diasDisponibles[0] || '');
+
+  // Actualizar el día seleccionado si cambian los datos (por ejemplo, si cambias de laptop)
+  useEffect(() => {
+    if (diasDisponibles.length > 0 && !diasDisponibles.includes(diaSeleccionado)) {
+      setDiaSeleccionado(diasDisponibles[0]);
+    }
+  }, [datos]);
+
+  // Filtrar registros que coincidan exactamente con el día seleccionado
   const datosFiltrados = datos.filter(d => {
-    if (!fechaSeleccionada) return true;
-    const fechaRegistro = new Date(d.offline_timestamp).toISOString().split('T')[0];
-    return fechaRegistro === fechaSeleccionada;
+    if (!diaSeleccionado) return true;
+    const fechaRegistro = new Date(d.offline_timestamp).toLocaleDateString('es-MX');
+    return fechaRegistro === diaSeleccionado;
   });
 
   const [registroActivo, setRegistroActivo] = useState(datosFiltrados[0] || datos[0]); 
 
+  // Cambiar el marcador en el mapa cuando cambias de día filtrado
   useEffect(() => {
     if (datosFiltrados.length > 0) {
       setRegistroActivo(datosFiltrados[0]);
     }
-  }, [datosFiltrados]);
+  }, [diaSeleccionado]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -335,35 +349,27 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: LOG DE AUDITORÍA CON CALENDARIO */}
+        {/* COLUMNA DERECHA: LOG DE AUDITORÍA CON SELECTOR DESPLEGABLE */}
         <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '15px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Log de Auditoría</strong>
             
-            {/* CALENDARIO FILTRO */}
+            {/* SELECTOR DE DÍAS DISPONIBLES */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-              <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Filtrar fecha:</span>
-              <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
-                <input 
-                  type="date" 
-                  value={fechaSeleccionada}
-                  onChange={(e) => setFechaSeleccionada(e.target.value)}
-                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none', backgroundColor: 'white' }}
-                />
-                {fechaSeleccionada && (
-                  <button 
-                    onClick={() => setFechaSeleccionada('')}
-                    style={{ background: '#E2E8F0', border: 'none', padding: '0 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', color: '#334155', fontWeight: 'bold' }}
-                    title="Limpiar filtro"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+              <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Seleccionar día:</span>
+              <select 
+                value={diaSeleccionado}
+                onChange={(e) => setDiaSeleccionado(e.target.value)}
+                style={{ flex: 1, padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none', backgroundColor: 'white', color: '#1E293B', fontWeight: '600', cursor: 'pointer' }}
+              >
+                {diasDisponibles.map((dia, idx) => (
+                  <option key={idx} value={dia}>{dia}</option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div style={{ padding: '0', overflowY: 'auto', maxHeight: '530px' }}>
+          <div style={{ padding: '0', overflowY: 'auto', maxHeight: '520px' }}>
             {datosFiltrados.length > 0 ? datosFiltrados.map((d, i) => {
               const isSelected = registroActivo?._id === d._id; 
               
@@ -393,7 +399,7 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
               )
             }) : (
               <div style={{ padding: '30px', color: '#94A3B8', textAlign: 'center', fontStyle: 'italic' }}>
-                No hay registros para la fecha seleccionada.
+                No hay registros para este día.
               </div>
             )}
           </div>
