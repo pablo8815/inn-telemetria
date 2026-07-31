@@ -349,12 +349,18 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
     return fechaRegistro === fechaSeleccionada;
   });
 
-  const [registroActivo, setRegistroActivo] = useState(datosFiltrados[0]); 
+  const [registroActivo, setRegistroActivo] = useState(null); 
 
-  // Si cambia el día y hay registros, selecciona el más reciente de ese día
+  // Mantiene la selección intacta aunque lleguen datos nuevos cada 5 segundos
   useEffect(() => {
     if (datosFiltrados.length > 0) {
-      setRegistroActivo(datosFiltrados[0]);
+      setRegistroActivo(prevActivo => {
+        // Verifica si el que tenemos seleccionado sigue existiendo en este día
+        const sigueExistiendo = prevActivo ? datosFiltrados.find(d => d._id === prevActivo._id) : null;
+        
+        // Si existe lo conservamos, si no (porque cambiaste de día), forzamos el primero
+        return sigueExistiendo || datosFiltrados[0];
+      });
     } else {
       setRegistroActivo(null); // Limpia si es un día vacío
     }
@@ -416,14 +422,12 @@ function DashboardEquipo({ equipoId, datos, onBack }) {
         {/* COLUMNA DERECHA: CALENDARIO OSCURO Y LOG DE AUDITORÍA */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* AQUÍ INYECTAMOS TU NUEVO CALENDARIO WIDGET */}
           <CalendarioPersonalizado 
             fechaSeleccionada={fechaSeleccionada} 
             setFechaSeleccionada={setFechaSeleccionada} 
             diasConRegistros={diasConRegistros} 
           />
 
-          {/* CAJA DE LOG DE AUDITORÍA (LISTA DEL DÍA SELECCIONADO) */}
           <div style={{ backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ padding: '15px 25px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
               <strong style={{ color: '#1E293B', fontSize: '1.1rem' }}>Auditoría del: {fechaSeleccionada}</strong>
